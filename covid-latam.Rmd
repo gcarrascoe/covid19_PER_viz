@@ -1,0 +1,64 @@
+---
+title: "Covid-19 Latam"
+author: "Gabriel Carrasco Escobar"
+date: "`r Sys.Date()`"
+output: html_document
+image: img/blog/covid-latam.png
+tags:
+- R Markdown
+- plot
+---
+
+Anilisis de los datos reportados por [Johns Hopkins University (JHU CSSE)](https://github.com/CSSEGISandData/COVID-19) y [WHO sitreps](https://github.com/fkrauer/COVID-19).
+
+- Datos [paquete covid19viz](https://avallecam.github.io/covid19viz/) de [Andree Valle](https://twitter.com/avallecam)
+
+- Informacion Adicional [Gobierno del Peru](https://www.gob.pe/coronavirus)
+
+- Situacion Nivel Mundial [Coronavirus COVID-19 Global Cases by the Center for Systems Science and Engineering (CSSE)](https://coronavirus.jhu.edu/map.html)
+
+# Datos y grafico
+
+```{r covid-latam, warning=F, message=F, out.width = '100%', fig.align="center", dpi=300}
+#devtools::install_github("avallecam/covid19viz")
+#devtools::install_github('cttobin/ggthemr')
+
+library(tidyverse)
+library(covid19viz)
+library(janitor)
+library(colorspace)
+library(ggthemr)
+
+paises <- c("Peru", "Brazil", "Colombia", "Ecuador", "Chile", "Argentina", "Uruguay", "Paraguay", "Bolivia")
+
+dat <- jhu_sitrep_import(source = "confirmed") %>%
+  jhu_sitrep_cleandb() %>%
+  filter(country_region %in% paises) %>%
+  filter(value>0) %>%
+  group_by(country_region) %>%
+  mutate(start = first(dates),
+         d_start = dates-start,
+         per = ifelse(country_region =="Peru","Per","Otros"),
+         max_cases = max(value)) %>%
+  filter(max_cases>30)
+
+
+ggthemr('dust')
+
+dat %>%
+  filter(per =="Otros") %>%
+  ggplot(aes(x = d_start, y = value, group=country_region)) +
+  geom_line(aes(col = country_region)) +
+  geom_point(aes(col = country_region, shape = country_region)) +
+  geom_line(dat = dat %>% filter(per=="Per"), col = "red") +
+  geom_point(dat = dat %>% filter(per=="Per"), col = "red") +
+  geom_text(data = dat %>% slice(n()) %>% filter(country_region!="Peru"),
+            aes(y = value, label = country_region, col = country_region), vjust=-.5) +
+  geom_text(data = dat %>% slice(n()) %>% filter(country_region=="Peru"),
+            aes(y = value, label = country_region), col = "red", vjust=-.5) +
+  scale_color_discrete_sequential(palette = "Teal", nmax = 14, order = 5:14) +
+  labs(color = "Paises", x = "Dias desde primer reporte", y = "Numero de casos", shape = "Paises") +
+  scale_y_log10() + 
+  theme(legend.position = "bottom")
+
+```
